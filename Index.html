@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #87CEEB; /* Sky blue background */
+        }
+
+        .date-bar {
+            display: flex;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            gap: 10px;
+            padding: 10px;
+            background-color: #f0f0f0;
+        }
+
+        .date-btn {
+            padding: 5px 15px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background-color: white;
+        }
+
+        .date-btn.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        input[type="number"] {
+            width: 60px;
+        }
+
+        /* Button 30 Styling (Replaces Save Button) */
+        .button-30 {
+            align-items: center;
+            appearance: none;
+            background-color: #FCFCFD;
+            border-radius: 4px;
+            border: none;
+            box-shadow: rgba(45, 35, 66, 0.4) 0 2px 4px, 
+                        rgba(45, 35, 66, 0.3) 0 7px 13px -3px, 
+                        #D6D6E7 0 -3px 0 inset;
+            box-sizing: border-box;
+            color: #36395A;
+            cursor: pointer;
+            display: inline-flex;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 18px;
+            height: 48px;
+            justify-content: center;
+            padding: 12px 16px;
+            text-align: center;
+            transition: box-shadow 0.15s, transform 0.15s;
+            user-select: none;
+            white-space: nowrap;
+            will-change: box-shadow, transform;
+        }
+
+        .button-30:focus {
+            box-shadow: #D6D6E7 0 0 0 1.5px inset, 
+                        rgba(45, 35, 66, 0.4) 0 2px 4px, 
+                        rgba(45, 35, 66, 0.3) 0 7px 13px -3px, 
+                        #D6D6E7 0 -3px 0 inset;
+        }
+
+        .button-30:hover {
+            box-shadow: rgba(45, 35, 66, 0.4) 0 4px 8px, 
+                        rgba(45, 35, 66, 0.3) 0 7px 13px -3px, 
+                        #D6D6E7 0 -3px 0 inset;
+            transform: translateY(-2px);
+        }
+
+        .button-30:active {
+            box-shadow: #D6D6E7 0 3px 7px inset;
+            transform: translateY(2px);
+        }
+
+    </style>
+</head>
+<body>
+    <div class="date-bar" id="dateBar"></div>
+
+    <table id="studyTable">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Total Study Time (hrs)</th>
+                <th>Studied Time (hrs)</th>
+                <th>Percentage</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <!-- Rows will be added dynamically -->
+        </tbody>
+    </table>
+
+    <div class="action-buttons">
+        <button class="button-30" onclick="saveData()">Save</button>
+        <button class="delete-btn" onclick="deleteData()">Delete</button>
+    </div>
+
+    <script>
+        let currentDate = new Date('2025-04-04');
+        let selectedDate = currentDate.toISOString().split('T')[0];
+        let studyData = {};
+
+        const timetable = [
+            { subject: "ssc-math", totalTime: 1 },
+            { subject: "ssc-reasoning", totalTime: 1.5 },
+            { subject: "sem-3", totalTime: 2 },
+            { subject: "html-css", totalTime: 1.5 },
+            { subject: "8-9", totalTime: 1 }
+        ];
+
+        function generateDateBar() {
+            const dateBar = document.getElementById('dateBar');
+            for (let i = 0; i < 7; i++) {
+                let date = new Date(currentDate);
+                date.setDate(currentDate.getDate() + i);
+                let dateStr = date.toISOString().split('T')[0];
+                let btn = document.createElement('button');
+                btn.className = 'date-btn';
+                btn.textContent = date.toDateString();
+                btn.onclick = () => selectDate(dateStr);
+                if (dateStr === selectedDate) btn.classList.add('active');
+                dateBar.appendChild(btn);
+            }
+        }
+
+        function loadTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            timetable.forEach(item => {
+                const row = document.createElement('tr');
+                const studiedTime = studyData[selectedDate]?.[item.subject] || 0;
+                const percentage = (studiedTime / item.totalTime * 100).toFixed(2);
+                
+                row.innerHTML = `
+                    <td>${item.subject}</td>
+                    <td>${item.totalTime}</td>
+                    <td><input type="number" min="0" max="${item.totalTime}" step="0.1"
+                        value="${studiedTime}" 
+                        onchange="updatePercentage(this, '${item.subject}')"></td>
+                    <td class="percentage">${percentage}%</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function selectDate(date) {
+            selectedDate = date;
+            document.querySelectorAll('.date-btn').forEach(btn => 
+                btn.classList.remove('active'));
+            event.target.classList.add('active');
+            loadTable();
+        }
+
+        function updatePercentage(input, subject) {
+            const row = input.parentElement.parentElement;
+            const totalTime = parseFloat(row.cells[1].textContent);
+            const studiedTime = parseFloat(input.value) || 0;
+            const percentage = (studiedTime / totalTime * 100).toFixed(2);
+            row.querySelector('.percentage').textContent = percentage + '%';
+        }
+
+        function saveData() {
+            const rows = document.querySelectorAll('#tableBody tr');
+            studyData[selectedDate] = {};
+            rows.forEach(row => {
+                const subject = row.cells[0].textContent;
+                const studiedTime = parseFloat(row.cells[2].querySelector('input').value) || 0;
+                studyData[selectedDate][subject] = studiedTime;
+            });
+            alert('Data saved for ' + selectedDate);
+        }
+
+        function deleteData() {
+            if (studyData[selectedDate]) {
+                delete studyData[selectedDate];
+                loadTable();
+                alert('Data deleted for ' + selectedDate);
+            }
+        }
+
+        generateDateBar();
+        loadTable();
+    </script>
+</body>
+              </html>
