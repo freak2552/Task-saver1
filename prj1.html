@@ -1,0 +1,196 @@
+<!DOCTYPE html><html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Timetable</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 10px;
+            text-align: center;
+        }
+        input, button {
+            margin: 10px;
+            padding: 8px;
+        }
+        .date-container {
+            display: flex;
+            overflow-x: auto;
+            padding: 10px;
+            white-space: nowrap;
+        }
+        .date-box {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid black;
+            cursor: pointer;
+        }
+        .saved-date {
+            background-color: lightgreen !important;
+        }
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border: 1px solid black;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        .slider-container {
+            position: relative;
+        }
+        .completion-percentage {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Study Timetable</h2>
+        <div class="date-container" id="dateContainer"></div><input type="text" id="subject" placeholder="Enter subject name">
+    <input type="number" id="hours" placeholder="Study Hours" min="1">
+    <button onclick="addSubject()">Add Subject</button>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Hours</th>
+                <th>Completion (%)</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="timetableBody"></tbody>
+    </table>
+    
+    <button onclick="saveTimetable()">Save</button>
+    <button onclick="deleteTimetable()">Delete All</button>
+</div>
+
+<div class="popup" id="statsPopup">
+    <h3>Study Statistics</h3>
+    <p id="totalHours"></p>
+    <p id="averageCompletion"></p>
+    <button onclick="closePopup()">Close</button>
+</div>
+
+<script>
+    let currentKey = null;
+    
+    function generateDates() {
+        let container = document.getElementById('dateContainer');
+        let today = new Date();
+        for (let i = 0; i < 30; i++) {
+            let date = new Date();
+            date.setDate(today.getDate() - i);
+            let dateString = date.getDate(); // Only show day number
+            let fullDateString = date.toISOString().split('T')[0];
+            let div = document.createElement('div');
+            div.textContent = dateString;
+            div.classList.add('date-box');
+            if (localStorage.getItem(`timetable_${fullDateString}`)) {
+                div.classList.add('saved-date');
+            }
+            div.onclick = () => showStatsPopup(fullDateString);
+            container.appendChild(div);
+        }
+    }
+    
+    function addSubject() {
+        let subject = document.getElementById('subject').value;
+        let hours = parseFloat(document.getElementById('hours').value);
+        
+        if (subject && hours > 0) {
+            let timetable = JSON.parse(localStorage.getItem('default_timetable')) || [];
+            timetable.push({ subject, hours });
+            localStorage.setItem('default_timetable', JSON.stringify(timetable));
+            updateTable(timetable);
+            document.getElementById('subject').value = '';
+            document.getElementById('hours').value = '';
+        }
+    }
+    
+    function updateTable(timetable, savedData = {}) {
+        let tbody = document.getElementById('timetableBody');
+        tbody.innerHTML = '';
+        
+        timetable.forEach((item, index) => {
+            let row = tbody.insertRow();
+            row.insertCell(0).textContent = item.subject;
+            row.insertCell(1).textContent = item.hours;
+            let completionCell = row.insertCell(2);
+            
+            let sliderContainer = document.createElement('div');
+            sliderContainer.classList.add('slider-container');
+            
+            let percentageLabel = document.createElement('div');
+            percentageLabel.classList.add('completion-percentage');
+            percentageLabel.textContent = savedData[item.subject] || '0%';
+            
+            let slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = 0;
+            slider.max = 100;
+            slider.value = savedData[item.subject] || 0;
+            
+            slider.oninput = function () {
+                savedData[item.subject] = slider.value;
+                percentageLabel.textContent = slider.value + '%';
+            };
+            
+            sliderContainer.appendChild(percentageLabel);
+            sliderContainer.appendChild(slider);
+            completionCell.appendChild(sliderContainer);
+            
+            let actionCell = row.insertCell(3);
+            let deleteBtn = document.createElement('button');
+            deleteBtn.textContent = '❌';
+            deleteBtn.onclick = () => deleteSubject(index);
+            actionCell.appendChild(deleteBtn);
+        });
+    }
+    
+    function showStatsPopup(date) {
+        let savedData = JSON.parse(localStorage.getItem(`timetable_${date}`)) || {};
+        let timetable = JSON.parse(localStorage.getItem('default_timetable')) || [];
+        let totalHours = timetable.reduce((sum, item) => sum + item.hours, 0);
+        let averageCompletion = timetable.length > 0 ? 
+            Math.round(Object.values(savedData).reduce((sum, val) => sum + parseInt(val || 0), 0) / timetable.length) : 0;
+        
+        document.getElementById('totalHours').textContent = `Total Hours: ${totalHours}`;
+        document.getElementById('averageCompletion').textContent = `Average Completion: ${averageCompletion}%`;
+        document.getElementById('statsPopup').style.display = 'block';
+    }
+    
+    function closePopup() {
+        document.getElementById('statsPopup').style.display = 'none';
+    }
+    
+    generateDates();
+</script>
+
+</body>
+</html>
